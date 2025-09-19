@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Georreferenciación - Gestión de Capas e Investigación</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --uabjb-blue: #0a58ca;
+            --uabjb-light-blue: #3388ff;
+            --uabjb-green: #28a745;
+            --uabjb-gold: #ffc107;
+            --uabjb-purple: #6f42c1;
+            --uabjb-orange: #fd7e14;
+        }
+        
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        .header-bg {
+            background: linear-gradient(135deg, var(--uabjb-blue) 0%, #0d6efd 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        
+        .drawing-tools {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            width: 250px;
+        }
+        
+        .layer-manager {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            width: 250px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid var(--uabjb-blue);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .form-container {
+            display: none;
+            background: rgba(255, 255, 255, 0.98);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 25px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .legend {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+        }
+        
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.8;
+            border-radius: 50%;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+        
+        .property-img {
+            height: 180px;
+            object-fit: cover;
+            width: 100%;
+            border-radius: 8px;
+        }
+        
+        .leaflet-draw-toolbar {
+            margin-top: 0 !important;
+        }
+        
+        .area-display {
+            background: var(--uabjb-blue);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .terrain-analysis {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .terrain-feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .terrain-feature i {
+            width: 24px;
+            text-align: center;
+            margin-right: 10px;
+            color: var(--uabjb-blue);
+        }
+        
+        .progress {
+            height: 8px;
+        }
+        
+        .property-type-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        
+        .layer-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        
+        .layer-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .researcher-item, .institution-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 992px) {
+            .drawing-tools, .layer-manager {
+                position: relative;
+                top: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+        
+        .nav-pills .nav-link.active {
+            background-color: var(--uabjb-blue);
+        }
+        
+        .analysis-result {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .collaboration-badge {
+            font-size: 0.75rem;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg header-bg">
+        <div class="container">
+            <div class="logo-container">
+                <div class="logo">UABJB</div>
+                <a class="navbar-brand" href="#">Sistema de Georreferenciación</a>
+            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-home me-1"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-info-circle me-1"></i> Acerca de</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-envelope me-1"></i> Contacto</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Sistema de Georreferenciación - Gestión de Capas</h5>
+                        <div class="d-flex">
+                            <button class="btn btn-sm btn-outline-primary me-2" id="helpButton">
+                                <i class="fas fa-question-circle"></i> Ayuda
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body position-relative">
+                        <div id="map"></div>
+                        
+                        <!-- Panel de herramientas de dibujo -->
+                        <div class="drawing-tools">
+                            <h6>Herramientas de Dibujo</h6>
+                            <div class="instructions">
+                                <small>1. Seleccione una capa activa</small><br>
+                                <small>2. Dibuje el polígono en el mapa</small><br>
+                                <small>3. Complete el formulario de datos</small>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary btn-sm" id="drawPolygon">
+                                    <i class="fas fa-draw-polygon me-1"></i> Dibujar Polígono
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" id="editShape">
+                                    <i class="fas fa-edit me-1"></i> Editar Forma
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" id="deleteShape">
+                                    <i class="fas fa-trash me-1"></i> Eliminar Forma
+                                </button>
+                            </div>
+                            <div class="area-display" id="areaDisplay">
+                                Área: 0.00 ha
+                            </div>
+                            
+                            <!-- Análisis de terreno -->
+                            <div class="terrain-analysis">
+                                <h6>Análisis de Terreno</h6>
+                                <div class="terrain-feature">
+                                    <i class="fas fa-mountain"></i>
+                                    <div class="w-100">
+                                        <div class="d-flex justify-content-between">
+                                            <small>Topografía</small>
+                                            <small id="topographyValue">Plana</small>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" style="width: 20%" id="topographyBar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="terrain-feature">
+                                    <i class="fas fa-tree"></i>
+                                    <div class="w-100">
+                                        <div class="d-flex justify-content-between">
+                                            <small>Vegetación</small>
+                                            <small id="vegetationValue">Baja</small>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: 30%" id="vegetationBar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="terrain-feature">
+                                    <i class="fas fa-tint"></i>
+                                    <div class="w-100">
+                                        <div class="d-flex justify-content-between">
+                                            <small>Humedad</small>
+                                            <small id="humidityValue">Media</small>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-info" role="progressbar" style="width: 50%" id="humidityBar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Gestor de capas -->
+                        <div class="layer-manager">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Gestor de Capas</h6>
+                                <button class="btn btn-sm btn-outline-primary" id="addLayerBtn">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div id="layersList">
+                                <!-- Las capas se agregarán aquí dinámicamente -->
+                            </div>
+                        </div>
+                        
+                        <!-- Leyenda -->
+                        <div class="legend" style="position: absolute; bottom: 20px; right: 20px;">
+                            <h6>Leyenda</h6>
+                            <div id="legendContent">
+                                <!-- La leyenda se actualizará dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario para datos del predio -->
+    <div class="form-container" id="propertyForm">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Registro de Predio</h4>
+            <button type="button" class="btn-close" id="closeForm"></button>
+        </div>
+        
+        <ul class="nav nav-pills mb-3" id="propertyTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="basic-tab" data-bs-toggle="pill" data-bs-target="#basic" type="button" role="tab">Información Básica</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="details-tab" data-bs-toggle="pill" data-bs-target="#details" type="button" role="tab">Características</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="research-tab" data-bs-toggle="pill" data-bs-target="#research" type="button" role="tab">Investigación</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="analysis-tab" data-bs-toggle="pill" data-bs-target="#analysis" type="button" role="tab">Análisis</button>
+            </li>
+        </ul>
+        
+        <form id="predioForm">
+            <div class="tab-content" id="propertyTabContent">
+                <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="propertyName" class="form-label">Nombre del Predio *</label>
+                            <input type="text" class="form-control" id="propertyName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="propertyArea" class="form-label">Área (hectáreas) *</label>
+                            <input type="text" class="form-control" id="propertyArea" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="propertyType" class="form-label">Tipo de Predio *</label>
+                        <select class="form-select" id="propertyType" required onchange="updateFormByPropertyType()">
+                            <option value="">Seleccione el tipo de predio</option>
+                            <option value="campus">Campus Universitario</option>
+                            <option value="administrativo">Edificio Administrativo</option>
+                            <option value="investigacion">Área de Investigación</option>
+                            <option value="deportivo">Instalación Deportiva</option>
+                            <option value="cultural">Espacio Cultural</option>
+                            <option value="residencial">Residencia Universitaria</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="propertyFaculty" class="form-label">Facultad</label>
+                        <select class="form-select" id="propertyFaculty">
+                            <option value="">Seleccione una facultad</option>
+                            <option value="ingenieria">Facultad de Ingeniería</option>
+                            <option value="ciencias-salud">Facultad de Ciencias de la Salud</option>
+                            <option value="derecho">Facultad de Derecho</option>
+                            <option value="ciencias-agropecuarias">Facultad de Ciencias Agropecuarias</option>
+                            <option value="ninguna">No aplica</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="propertyLayers" class="form-label">Capas Asociadas</label>
+                        <div id="propertyLayers">
+                            <!-- Las capas disponibles se agregarán aquí dinámicamente -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="propertyDescription" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="propertyDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="details" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="propertyCode" class="form-label">Código del Predio</label>
+                            <input type="text" class="form-control" id="propertyCode">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="propertyStatus" class="form-label">Estado *</label>
+                            <select class="form-select" id="propertyStatus" required>
+                                <option value="activo">Activo</option>
+                                <option value="inactivo">Inactivo</option>
+                                <option value="planificacion">En planificación</option>
+                                <option value="construccion">En construcción</option>
+                                <option value="mantenimiento">En mantenimiento</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Características del Terreno</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="terrainUrban">
+                            <label class="form-check-label" for="terrainUrban">Área urbana</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="terrainAccess">
+                            <label class="form-check-label" for="terrainAccess">Acceso pavimentado</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="terrainServices">
+                            <label class="form-check-label" for="terrainServices">Servicios básicos disponibles</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="terrainSlope">
+                            <label class="form-check-label" for="terrainSlope">Inclinación pronunciada</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="propertyCapacity" class="form-label">Capacidad de personas</label>
+                        <input type="number" class="form-control" id="propertyCapacity" min="0">
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="research" role="tabpanel">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Investigadores Asociados</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addResearcherBtn">
+                                <i class="fas fa-plus me-1"></i> Agregar
+                            </button>
+                        </div>
+                        <div id="researchersList">
+                            <!-- Lista de investigadores -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Instituciones Colaboradoras</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addInstitutionBtn">
+                                <i class="fas fa-plus me-1"></i> Agregar
+                            </button>
+                        </div>
+                        <div id="institutionsList">
+                            <!-- Lista de instituciones -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="researchType" class="form-label">Tipo de Investigación</label>
+                        <select class="form-select" id="researchType">
+                            <option value="">Seleccione el tipo de investigación</option>
+                            <option value="basica">Básica</option>
+                            <option value="aplicada">Aplicada</option>
+                            <option value="desarrollo">Desarrollo Experimental</option>
+                            <option value="social">Ciencias Sociales</option>
+                            <option value="ambiental">Medio Ambiental</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="researchStatus" class="form-label">Estado de la Investigación</label>
+                        <select class="form-select" id="researchStatus">
+                            <option value="activa">Activa</option>
+                            <option value="finalizada">Finalizada</option>
+                            <option value="planificacion">En planificación</option>
+                            <option value="suspendida">Suspendida</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="researchDescription" class="form-label">Descripción del Proyecto</label>
+                        <textarea class="form-control" id="researchDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="analysis" role="tabpanel">
+                    <div class="analysis-result">
+                        <h6>Análisis de Idoneidad</h6>
+                        <p>Basado en las características del terreno y el tipo de predio seleccionado.</p>
+                        
+                        <div class="terrain-feature">
+                            <i class="fas fa-clipboard-check"></i>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between">
+                                    <small>Adecuación para el uso</small>
+                                    <small id="suitabilityValue">Alta</small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 85%" id="suitabilityBar"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="terrain-feature">
+                            <i class="fas fa-tools"></i>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between">
+                                    <small>Requerimiento de infraestructura</small>
+                                    <small id="infrastructureValue">Moderado</small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: 60%" id="infrastructureBar"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="terrain-feature">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <div class="w-100">
+                                <div class="d-flex justify-content-between">
+                                    <small>Costo estimado de desarrollo</small>
+                                    <small id="costValue">Medio</small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: 50%" id="costBar"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h6>Recomendaciones</h6>
+                            <ul id="recommendationsList">
+                                <li>El terreno es adecuado para el uso educativo planeado</li>
+                                <li>Considerar sistemas de drenaje por las características del suelo</li>
+                                <li>Evaluar conectividad con otras instalaciones universitarias</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">Guardar Predio</button>
+                <button type="button" class="btn btn-outline-secondary" id="cancelForm">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <h5>Universidad Autónoma del Beni "José Ballivián"</h5>
+                    <p>Sistema Web de Georreferenciación de Predios</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p>Desarrollado con Leaflet, Leaflet.draw y Bootstrap</p>
+                    <p class="mb-0">© 2023 - Proyecto Académico</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Leaflet Draw JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <script>
+        // Clase para gestionar las capas
+        class Layer {
+            constructor(id, name, color, visible = true) {
+                this.id = id;
+                this.name = name;
+                this.color = color;
+                this.visible = visible;
+                this.features = new L.FeatureGroup();
+            }
+            
+            addFeature(feature) {
+                this.features.addLayer(feature);
+            }
+            
+            removeFeature(feature) {
+                this.features.removeLayer(feature);
+            }
+            
+            setVisibility(visible) {
+                this.visible = visible;
+                if (visible) {
+                    map.addLayer(this.features);
+                } else {
+                    map.removeLayer(this.features);
+                }
+            }
+            
+            getFeatureCount() {
+                return this.features.getLayers().length;
+            }
+        }
+
+        // Clase para gestionar las propiedades/terrenos
+        class Property {
+            constructor(id, name, type, area, coordinates, polygon) {
+                this.id = id;
+                this.name = name;
+                this.type = type;
+                this.area = area;
+                this.coordinates = coordinates;
+                this.polygon = polygon;
+                this.faculty = '';
+                this.description = '';
+                this.status = 'activo';
+                this.code = '';
+                this.terrainCharacteristics = {};
+                this.analysis = {};
+                this.layers = [];
+                this.research = {
+                    researchers: [],
+                    institutions: [],
+                    type: '',
+                    status: '',
+                    description: ''
+                };
+                this.createdAt = new Date();
+            }
+            
+            setDetails(details) {
+                this.faculty = details.faculty || '';
+                this.description = details.description || '';
+                this.status = details.status || 'activo';
+                this.code = details.code || '';
+                this.terrainCharacteristics = details.terrainCharacteristics || {};
+                this.capacity = details.capacity || 0;
+                this.layers = details.layers || [];
+            }
+            
+            setResearchInfo(researchInfo) {
+                this.research = researchInfo;
+            }
+            
+            setAnalysis(analysis) {
+                this.analysis = analysis;
+            }
+            
+            getColorByType() {
+                const colors = {
+                    'campus': '#28a745',
+                    'administrativo': '#dc3545',
+                    'investigacion': '#ffc107',
+                    'deportivo': '#6f42c1',
+                    'cultural': '#fd7e14',
+                    'residencial': '#20c997',
+                    'otros': '#6c757d'
+                };
+                return colors[this.type] || '#3388ff';
+            }
+            
+            getTypeName() {
+                const types = {
+                    'campus': 'Campus Universitario',
+                    'administrativo': 'Edificio Administrativo',
+                    'investigacion': 'Área de Investigación',
+                    'deportivo': 'Instalación Deportiva',
+                    'cultural': 'Espacio Cultural',
+                    'residencial': 'Residencia Universitaria',
+                    'otros': 'Otros'
+                };
+                return types[this.type] || 'Sin especificar';
+            }
+            
+            addToLayer(layerId) {
+                if (!this.layers.includes(layerId)) {
+                    this.layers.push(layerId);
+                }
+            }
+            
+            removeFromLayer(layerId) {
+                const index = this.layers.indexOf(layerId);
+                if (index > -1) {
+                    this.layers.splice(index, 1);
+                }
+            }
+        }
+
+        // Clase para gestionar investigadores
+        class Researcher {
+            constructor(id, name, affiliation, type, contact = '') {
+                this.id = id;
+                this.name = name;
+                this.affiliation = affiliation;
+                this.type = type; // 'local' o 'extranjero'
+                this.contact = contact;
+            }
+        }
+
+        // Clase para gestionar instituciones
+        class Institution {
+            constructor(id, name, country, type, agreement = false) {
+                this.id = id;
+                this.name = name;
+                this.country = country;
+                this.type = type; // 'nacional' o 'internacional'
+                this.agreement = agreement;
+            }
+        }
+
+        // Clase para gestionar el mapa y las operaciones de dibujo
+        class MapManager {
+            constructor() {
+                this.map = L.map('map').setView([-14.835, -64.904], 14);
+                this.drawnItems = new L.FeatureGroup();
+                this.currentPolygon = null;
+                this.area = 0;
+                this.properties = [];
+                this.layers = {};
+                this.activeLayerId = null;
+                this.initMap();
+            }
+            
+            initMap() {
+                // Capa base de OpenStreetMap
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(this.map);
+                
+                // Agregar la capa de elementos dibujados
+                this.map.addLayer(this.drawnItems);
+                
+                // Inicializar el control de dibujo
+                this.drawControl = new L.Control.Draw({
+                    draw: {
+                        polygon: {
+                            shapeOptions: {
+                                color: '#3388ff',
+                                fillColor: '#3388ff',
+                                fillOpacity: 0.3
+                            },
+                            allowIntersection: false,
+                            drawError: {
+                                color: '#e1e100',
+                                message: '<strong>Error:</strong> ¡Las aristas del polígono no pueden cruzarse!'
+                            },
+                            showArea: true,
+                            metric: true,
+                            feet: false
+                        },
+                        polyline: false,
+                        circle: false,
+                        circlemarker: false,
+                        rectangle: false,
+                        marker: false
+                    },
+                    edit: {
+                        featureGroup: this.drawnItems
+                    }
+                });
+                
+                this.map.addControl(this.drawControl);
+                this.setupEventHandlers();
+                
+                // Crear capas por defecto
+                this.createLayer('Campus Principal', '#28a745');
+                this.createLayer('Áreas de Investigación', '#ffc107');
+                this.createLayer('Instalaciones Deportivas', '#6f42c1');
+                this.createLayer('Edificios Administrativos', '#dc3545');
+            }
+            
+            setupEventHandlers() {
+                // Eventos de dibujo
+                this.map.on(L.Draw.Event.CREATED, (e) => {
+                    const type = e.layerType;
+                    const layer = e.layer;
+                    
+                    if (type === 'polygon') {
+                        this.currentPolygon = layer;
+                        this.drawnItems.addLayer(layer);
+                        
+                        // Calcular área en hectáreas
+                        this.area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
+                        document.getElementById('areaDisplay').textContent = 'Área: ' + this.area.toFixed(2) + ' ha';
+                        
+                        // Actualizar análisis de terreno basado en el área
+                        this.updateTerrainAnalysis();
+                        
+                        // Mostrar formulario después de 1 segundo
+                        setTimeout(() => {
+                            document.getElementById('propertyForm').style.display = 'block';
+                            document.getElementById('propertyArea').value = this.area.toFixed(2);
+                            this.updateLayersForm();
+                        }, 1000);
+                    }
+                });
+                
+                this.map.on(L.Draw.Event.EDITED, (e) => {
+                    // Recalcular área después de editar
+                    const layers = e.layers;
+                    layers.eachLayer((layer) => {
+                        if (layer instanceof L.Polygon) {
+                            this.area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
+                            document.getElementById('areaDisplay').textContent = 'Área: ' + this.area.toFixed(2) + ' ha';
+                            this.updateTerrainAnalysis();
+                        }
+                    });
+                });
+                
+                this.map.on(L.Draw.Event.DELETED, (e) => {
+                    this.currentPolygon = null;
+                    this.area = 0;
+                    document.getElementById('areaDisplay').textContent = 'Área: 0.00 ha';
+                    this.resetTerrainAnalysis();
+                });
+            }
+            
+            createLayer(name, color) {
+                const id = 'layer_' + Date.now();
+                const layer = new Layer(id, name, color);
+                this.layers[id] = layer;
+                
+                // Si es la primera capa, establecerla como activa
+                if (!this.activeLayerId) {
+                    this.activeLayerId = id;
+                }
+                
+                // Actualizar la UI
+                this.updateLayersUI();
+                this.updateLegend();
+                
+                return id;
+            }
+            
+            removeLayer(layerId) {
+                if (this.layers[layerId]) {
+                    // Ocultar la capa si está visible
+                    this.layers[layerId].setVisibility(false);
+                    
+                    // Eliminar la capa
+                    delete this.layers[layerId];
+                    
+                    // Si era la capa activa, seleccionar otra
+                    if (this.activeLayerId === layerId) {
+                        const remainingIds = Object.keys(this.layers);
+                        this.activeLayerId = remainingIds.length > 0 ? remainingIds[0] : null;
+                    }
+                    
+                    // Actualizar la UI
+                    this.updateLayersUI();
+                    this.updateLegend();
+                }
+            }
+            
+            updateLayersUI() {
+                const layersList = document.getElementById('layersList');
+                layersList.innerHTML = '';
+                
+                for (const id in this.layers) {
+                    const layer = this.layers[id];
+                    const isActive = this.activeLayerId === id;
+                    
+                    const layerItem = document.createElement('div');
+                    layerItem.className = 'layer-item';
+                    layerItem.innerHTML = `
+                        <div class="layer-color" style="background-color: ${layer.color}"></div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="${isActive ? 'fw-bold' : ''}">${layer.name}</span>
+                                <span class="badge bg-secondary">${layer.getFeatureCount()}</span>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" ${layer.visible ? 'checked' : ''} 
+                                    onchange="mapManager.layers['${id}'].setVisibility(this.checked)">
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="mapManager.removeLayer('${id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                    
+                    layerItem.addEventListener('click', () => {
+                        this.activeLayerId = id;
+                        this.updateLayersUI();
+                    });
+                    
+                    layersList.appendChild(layerItem);
+                }
+            }
+            
+            updateLayersForm() {
+                const layersContainer = document.getElementById('propertyLayers');
+                layersContainer.innerHTML = '';
+                
+                for (const id in this.layers) {
+                    const layer = this.layers[id];
+                    
+                    const checkbox = document.createElement('div');
+                    checkbox.className = 'form-check';
+                    checkbox.innerHTML = `
+                        <input class="form-check-input" type="checkbox" value="${id}" id="layer_${id}">
+                        <label class="form-check-label" for="layer_${id}">
+                            ${layer.name}
+                        </label>
+                    `;
+                    
+                    layersContainer.appendChild(checkbox);
+                }
+            }
+            
+            updateLegend() {
+                const legendContent = document.getElementById('legendContent');
+                legendContent.innerHTML = '';
+                
+                for (const id in this.layers) {
+                    const layer = this.layers[id];
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.innerHTML = `
+                        <div><i style="background: ${layer.color};"></i> ${layer.name}</div>
+                    `;
+                    
+                    legendContent.appendChild(legendItem);
+                }
+            }
+            
+            updateTerrainAnalysis() {
+                // Simular análisis de terreno basado en el área
+                let topographyValue, vegetationValue, humidityValue;
+                let topographyWidth, vegetationWidth, humidityWidth;
+                
+                if (this.area < 2) {
+                    topographyValue = "Plana";
+                    topographyWidth = 20;
+                    vegetationValue = "Baja";
+                    vegetationWidth = 30;
+                    humidityValue = "Media";
+                    humidityWidth = 50;
+                } else if (this.area < 5) {
+                    topographyValue = "Ligera";
+                    topographyWidth = 40;
+                    vegetationValue = "Media";
+                    vegetationWidth = 50;
+                    humidityValue = "Media";
+                    humidityWidth = 50;
+                } else if (this.area < 10) {
+                    topographyValue = "Moderada";
+                    topographyWidth = 60;
+                    vegetationValue = "Alta";
+                    vegetationWidth = 70;
+                    humidityValue = "Alta";
+                    humidityWidth = 70;
+                } else {
+                    topographyValue = "Pronunciada";
+                    topographyWidth = 85;
+                    vegetationValue = "Muy Alta";
+                    vegetationWidth = 90;
+                    humidityValue = "Muy Alta";
+                    humidityWidth = 90;
+                }
+                
+                // Actualizar la UI
+                document.getElementById('topographyValue').textContent = topographyValue;
+                document.getElementById('vegetationValue').textContent = vegetationValue;
+                document.getElementById('humidityValue').textContent = humidityValue;
+                
+                document.getElementById('topographyBar').style.width = topographyWidth + '%';
+                document.getElementById('vegetationBar').style.width = vegetationWidth + '%';
+                document.getElementById('humidityBar').style.width = humidityWidth + '%';
+            }
+            
+            resetTerrainAnalysis() {
+                // Restablecer los valores de análisis de terreno
+                document.getElementById('topographyValue').textContent = "Plana";
+                document.getElementById('vegetationValue').textContent = "Baja";
+                document.getElementById('humidityValue').textContent = "Media";
+                
+                document.getElementById('topographyBar').style.width = '20%';
+                document.getElementById('vegetationBar').style.width = '30%';
+                document.getElementById('humidityBar').style.width = '50%';
+            }
+            
+            addProperty(propertyData) {
+                const id = Date.now(); // ID único basado en timestamp
+                const { name, type, faculty, description, status, code, capacity, terrainCharacteristics, layers } = propertyData;
+                
+                // Crear una nueva propiedad
+                const property = new Property(
+                    id,
+                    name,
+                    type,
+                    this.area,
+                    this.currentPolygon.getLatLngs()[0],
+                    this.currentPolygon.getLatLngs()[0]
+                );
+                
+                // Establecer detalles adicionales
+                property.setDetails({
+                    faculty,
+                    description,
+                    status,
+                    code,
+                    terrainCharacteristics,
+                    capacity,
+                    layers
+                });
+                
+                // Añadir a las capas seleccionadas
+                for (const layerId of layers) {
+                    if (this.layers[layerId]) {
+                        property.addToLayer(layerId);
+                        this.layers[layerId].addFeature(this.currentPolygon);
+                        
+                        // Establecer el estilo según la capa
+                        this.currentPolygon.setStyle({
+                            color: this.layers[layerId].color,
+                            fillColor: this.layers[layerId].color
+                        });
+                    }
+                }
+                
+                // Realizar análisis de idoneidad
+                const analysis = this.performSuitabilityAnalysis(property);
+                property.setAnalysis(analysis);
+                
+                // Añadir a la lista de propiedades
+                this.properties.push(property);
+                
+                // Añadir badge de tipo
+                const badge = L.divIcon({
+                    html: `<span class="badge bg-secondary">${property.getTypeName()}</span>`,
+                    className: 'property-type-badge',
+                    iconSize: [120, 30]
+                });
+                
+                L.marker(this.currentPolygon.getBounds().getCenter(), { icon: badge }).addTo(this.map);
+                
+                // Actualizar la UI de capas
+                this.updateLayersUI();
+                
+                return property;
+            }
+            
+            performSuitabilityAnalysis(property) {
+                // Simular análisis de idoneidad basado en el tipo de propiedad y características
+                let suitabilityValue, infrastructureValue, costValue;
+                let suitabilityWidth, infrastructureWidth, costWidth;
+                let recommendations = [];
+                
+                switch(property.type) {
+                    case 'campus':
+                        suitabilityValue = "Alta";
+                        suitabilityWidth = 85;
+                        infrastructureValue = "Alto";
+                        infrastructureWidth = 80;
+                        costValue = "Alto";
+                        costWidth = 75;
+                        recommendations = [
+                            "Ideal para desarrollo educativo",
+                            "Considerar conectividad con transporte público",
+                            "Planificar áreas verdes y recreativas"
+                        ];
+                        break;
+                    case 'administrativo':
+                        suitabilityValue = "Alta";
+                        suitabilityWidth = 90;
+                        infrastructureValue = "Moderado";
+                        infrastructureWidth = 60;
+                        costValue = "Medio";
+                        costWidth = 50;
+                        recommendations = [
+                            "Excelente ubicación para oficinas administrativas",
+                            "Asegurar accesibilidad para personas con movilidad reducida",
+                            "Considerar estacionamiento para personal y visitas"
+                        ];
+                        break;
+                    case 'investigacion':
+                        suitabilityValue = "Media";
+                        suitabilityWidth = 70;
+                        infrastructureValue = "Alto";
+                        infrastructureWidth = 85;
+                        costValue = "Alto";
+                        costWidth = 80;
+                        recommendations = [
+                            "Requerirá instalaciones especializadas",
+                            "Considerar medidas de seguridad adicionales",
+                            "Evaluar suministro eléctrico y de datos"
+                        ];
+                        break;
+                    case 'deportivo':
+                        suitabilityValue = "Alta";
+                        suitabilityWidth = 80;
+                        infrastructureValue = "Moderado";
+                        infrastructureWidth = 65;
+                        costValue = "Medio";
+                        costWidth = 60;
+                        recommendations = [
+                            "Terreno adecuado para instalaciones deportivas",
+                            "Considerar drenaje adecuado para áreas exteriores",
+                            "Planificar vestuarios y áreas de apoyo"
+                        ];
+                        break;
+                    default:
+                        suitabilityValue = "Variable";
+                        suitabilityWidth = 50;
+                        infrastructureValue = "Variable";
+                        infrastructureWidth = 50;
+                        costValue = "Variable";
+                        costWidth = 50;
+                        recommendations = [
+                            "Evaluar uso específico planeado",
+                            "Realizar estudio de suelo adicional",
+                            "Consultar con planificadores urbanos"
+                        ];
+                }
+                
+                // Actualizar la UI de análisis
+                document.getElementById('suitabilityValue').textContent = suitabilityValue;
+                document.getElementById('infrastructureValue').textContent = infrastructureValue;
+                document.getElementById('costValue').textContent = costValue;
+                
+                document.getElementById('suitabilityBar').style.width = suitabilityWidth + '%';
+                document.getElementById('infrastructureBar').style.width = infrastructureWidth + '%';
+                document.getElementById('costBar').style.width = costWidth + '%';
+                
+                // Actualizar recomendaciones
+                const recommendationsList = document.getElementById('recommendationsList');
+                recommendationsList.innerHTML = '';
+                recommendations.forEach(rec => {
+                    const li = document.createElement('li');
+                    li.textContent = rec;
+                    recommendationsList.appendChild(li);
+                });
+                
+                return {
+                    suitability: { value: suitabilityValue, score: suitabilityWidth },
+                    infrastructure: { value: infrastructureValue, score: infrastructureWidth },
+                    cost: { value: costValue, score: costWidth },
+                    recommendations
+                };
+            }
+        }
+
+        // Clase para gestionar la interfaz de usuario
+        class UIManager {
+            constructor(mapManager) {
+                this.mapManager = mapManager;
+                this.researchers = [];
+                this.institutions = [];
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                // Eventos para los botones de control
+                document.getElementById('drawPolygon').addEventListener('click', () => {
+                    new L.Draw.Polygon(this.mapManager.map, this.mapManager.drawControl.options.draw.polygon).enable();
+                });
+                
+                document.getElementById('editShape').addEventListener('click', () => {
+                    if (this.mapManager.currentPolygon) {
+                        this.mapManager.drawControl._toolbars.edit._modes.edit.handler.enable();
+                    } else {
+                        alert('Primero debe dibujar un polígono para editarlo.');
+                    }
+                });
+                
+                document.getElementById('deleteShape').addEventListener('click', () => {
+                    if (this.mapManager.currentPolygon) {
+                        this.mapManager.map.removeLayer(this.mapManager.currentPolygon);
+                        this.mapManager.currentPolygon = null;
+                        this.mapManager.area = 0;
+                        document.getElementById('areaDisplay').textContent = 'Área: 0.00 ha';
+                        this.mapManager.resetTerrainAnalysis();
+                    } else {
+                        alert('No hay ningún polígono para eliminar.');
+                    }
+                });
+                
+                // Botón para añadir capa
+                document.getElementById('addLayerBtn').addEventListener('click', () => {
+                    const name = prompt('Nombre de la nueva capa:');
+                    if (name) {
+                        const color = prompt('Color de la capa (en hexadecimal, ej: #ff0000):', '#3388ff');
+                        this.mapManager.createLayer(name, color || '#3388ff');
+                    }
+                });
+                
+                // Control del formulario
+                document.getElementById('closeForm').addEventListener('click', () => {
+                    document.getElementById('propertyForm').style.display = 'none';
+                });
+                
+                document.getElementById('cancelForm').addEventListener('click', () => {
+                    document.getElementById('propertyForm').style.display = 'none';
+                });
+                
+                // Botón para añadir investigador
+                document.getElementById('addResearcherBtn').addEventListener('click', () => {
+                    this.showResearcherForm();
+                });
+                
+                // Botón para añadir institución
+                document.getElementById('addInstitutionBtn').addEventListener('click', () => {
+                    this.showInstitutionForm();
+                });
+                
+                document.getElementById('predioForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    // Recoger datos del formulario
+                    const selectedLayers = [];
+                    document.querySelectorAll('#propertyLayers input:checked').forEach(checkbox => {
+                        selectedLayers.push(checkbox.value);
+                    });
+                    
+                    const propertyData = {
+                        name: document.getElementById('propertyName').value,
+                        type: document.getElementById('propertyType').value,
+                        faculty: document.getElementById('propertyFaculty').value,
+                        description: document.getElementById('propertyDescription').value,
+                        status: document.getElementById('propertyStatus').value,
+                        code: document.getElementById('propertyCode').value,
+                        capacity: document.getElementById('propertyCapacity').value,
+                        terrainCharacteristics: {
+                            urban: document.getElementById('terrainUrban').checked,
+                            access: document.getElementById('terrainAccess').checked,
+                            services: document.getElementById('terrainServices').checked,
+                            slope: document.getElementById('terrainSlope').checked
+                        },
+                        layers: selectedLayers,
+                        research: {
+                            researchers: this.researchers,
+                            institutions: this.institutions,
+                            type: document.getElementById('researchType').value,
+                            status: document.getElementById('researchStatus').value,
+                            description: document.getElementById('researchDescription').value
+                        }
+                    };
+                    
+                    // Añadir la propiedad al mapa
+                    const property = this.mapManager.addProperty(propertyData);
+                    
+                    alert(`Predio "${property.name}" guardado exitosamente con un área de ${property.area.toFixed(2)} hectáreas.`);
+                    
+                    // Limpiar formulario
+                    document.getElementById('predioForm').reset();
+                    document.getElementById('propertyForm').style.display = 'none';
+                    this.researchers = [];
+                    this.institutions = [];
+                    this.updateResearchUI();
+                    
+                    this.mapManager.currentPolygon = null;
+                });
+                
+                // Botón de ayuda
+                document.getElementById('helpButton').addEventListener('click', () => {
+                    alert('Para dibujar un polígono:\n\n1. Seleccione una capa activa\n2. Haga clic en "Dibujar Polígono"\n3. Haga clic en el mapa para colocar los vértices del polígono\n4. Doble clic o clic en el primer punto para finalizar\n5. Complete el formulario con los datos del predio');
+                });
+            }
+            
+            showResearcherForm() {
+                const name = prompt('Nombre del investigador:');
+                if (name) {
+                    const affiliation = prompt('Afiliación del investigador:');
+                    const type = prompt('Tipo (local/extranjero):', 'local');
+                    const contact = prompt('Contacto (opcional):', '');
+                    
+                    const researcher = new Researcher(
+                        Date.now(),
+                        name,
+                        affiliation,
+                        type,
+                        contact
+                    );
+                    
+                    this.researchers.push(researcher);
+                    this.updateResearchUI();
+                }
+            }
+            
+            showInstitutionForm() {
+                const name = prompt('Nombre de la institución:');
+                if (name) {
+                    const country = prompt('País:', 'Bolivia');
+                    const type = prompt('Tipo (nacional/internacional):', 'nacional');
+                    const agreement = confirm('¿Existe un convenio de colaboración?');
+                    
+                    const institution = new Institution(
+                        Date.now(),
+                        name,
+                        country,
+                        type,
+                        agreement
+                    );
+                    
+                    this.institutions.push(institution);
+                    this.updateResearchUI();
+                }
+            }
+            
+            updateResearchUI() {
+                const researchersList = document.getElementById('researchersList');
+                researchersList.innerHTML = '';
+                
+                this.researchers.forEach(researcher => {
+                    const item = document.createElement('div');
+                    item.className = 'researcher-item';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>${researcher.name}</strong>
+                            <span class="badge ${researcher.type === 'local' ? 'bg-info' : 'bg-warning'} collaboration-badge">
+                                ${researcher.type === 'local' ? 'Local' : 'Extranjero'}
+                            </span>
+                        </div>
+                        <div>${researcher.affiliation}</div>
+                        <small class="text-muted">${researcher.contact}</small>
+                    `;
+                    researchersList.appendChild(item);
+                });
+                
+                const institutionsList = document.getElementById('institutionsList');
+                institutionsList.innerHTML = '';
+                
+                this.institutions.forEach(institution => {
+                    const item = document.createElement('div');
+                    item.className = 'institution-item';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>${institution.name}</strong>
+                            <span class="badge ${institution.type === 'nacional' ? 'bg-success' : 'bg-primary'} collaboration-badge">
+                                ${institution.type === 'nacional' ? 'Nacional' : 'Internacional'}
+                            </span>
+                        </div>
+                        <div>${institution.country}</div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" ${institution.agreement ? 'checked' : ''} disabled>
+                            <label class="form-check-label">Convenio activo</label>
+                        </div>
+                    `;
+                    institutionsList.appendChild(item);
+                });
+            }
+        }
+
+        // Función global para actualizar el formulario según el tipo de propiedad
+        function updateFormByPropertyType() {
+            const type = document.getElementById('propertyType').value;
+            const facultyField = document.getElementById('propertyFaculty');
+            const researchTab = document.getElementById('research-tab');
+            
+            // Mostrar/ocultar campos según el tipo de propiedad
+            if (type === 'campus' || type === 'investigacion') {
+                facultyField.required = true;
+                researchTab.style.display = 'block';
+            } else {
+                facultyField.required = false;
+                researchTab.style.display = 'none';
+                if (type === 'administrativo' || type === 'deportivo' || type === 'cultural') {
+                    facultyField.value = 'ninguna';
+                }
+            }
+            
+            // Si hay un mapaManager, actualizar el análisis
+            if (window.mapManager) {
+                // Crear un objeto property temporal para el análisis
+                const tempProperty = new Property(0, '', type, window.mapManager.area, [], []);
+                window.mapManager.performSuitabilityAnalysis(tempProperty);
+            }
+        }
+
+        // Inicializar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar el gestor del mapa
+            window.mapManager = new MapManager();
+            
+            // Inicializar el gestor de la interfaz de usuario
+            new UIManager(window.mapManager);
+            
+            // Ocultar la pestaña de investigación inicialmente
+            document.getElementById('research-tab').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
